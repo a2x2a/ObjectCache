@@ -67,8 +67,8 @@ var
   c1, c2: TObjectMemCache;
   i: Integer;
 begin
-  // если поставить размер кеша меньше 12 то в него не разу не попадем. бывает.
-  // до 12 постоянная запись на диск.
+  // РµСЃР»Рё РїРѕСЃС‚Р°РІРёС‚СЊ СЂР°Р·РјРµСЂ РєРµС€Р° РјРµРЅСЊС€Рµ 12 С‚Рѕ РІ РЅРµРіРѕ РЅРµ СЂР°Р·Сѓ РЅРµ РїРѕРїР°РґРµРј. Р±С‹РІР°РµС‚.
+  // РґРѕ 12 РїРѕСЃС‚РѕСЏРЅРЅР°СЏ Р·Р°РїРёСЃСЊ РЅР° РґРёСЃРє.
   c1 := nil;
   c2 := nil;
   for i := 1 to 15 do
@@ -76,13 +76,13 @@ begin
       c1 := TObjectMemFileCache.Create(i, 100);
       c2 := TObjectMemAsyncFileCache.Create(i, 100);
       Writeln(i:3, '  ', //
-        c1.ClassName, '  ', MonthDBdemo(c1), ' мс  ', //
-        c2.ClassName, '  ', MonthDBdemo(c2), ' мс');
+        c1.ClassName, '  ', MonthDBdemo(c1), ' РјСЃ  ', //
+        c2.ClassName, '  ', MonthDBdemo(c2), ' РјСЃ');
     finally
       FreeAndNil(c1);
       FreeAndNil(c2);
     end;
-  // итого  TObjectAsyncCache чуть быстрее, мелочь но приятно
+  // РёС‚РѕРіРѕ  TObjectAsyncCache С‡СѓС‚СЊ Р±С‹СЃС‚СЂРµРµ, РјРµР»РѕС‡СЊ РЅРѕ РїСЂРёСЏС‚РЅРѕ
 end;
 
 procedure Demo2;
@@ -95,16 +95,16 @@ var
   d, dc1, dc2: TDemoDict;
   i: Integer;
 const
-  key = 'Словарь';
+  key = 'РЎР»РѕРІР°СЂСЊ';
 begin
 
   c := TObjectMemFileCache.Create(10, 8,
 
     function(aClassName: string): TObject
     begin
-      // некоторые объекты надо создавать ручками, иначе получим симпатичный такой exception
+      // РЅРµРєРѕС‚РѕСЂС‹Рµ РѕР±СЉРµРєС‚С‹ РЅР°РґРѕ СЃРѕР·РґР°РІР°С‚СЊ СЂСѓС‡РєР°РјРё, РёРЅР°С‡Рµ РїРѕР»СѓС‡РёРј СЃРёРјРїР°С‚РёС‡РЅС‹Р№ С‚Р°РєРѕР№ exception
       if TDemoDict.QualifiedClassName = aClassName then
-        Result := TDemoDict.Create // по факту вызывается  Create(0)
+        Result := TDemoDict.Create // РїРѕ С„Р°РєС‚Сѓ РІС‹Р·С‹РІР°РµС‚СЃСЏ  Create(0)
       else
         Result := nil
     end);
@@ -171,15 +171,15 @@ var
   c: TObjectMemFileCache;
   w, w2: TWrap.TWeekObject;
 begin
-  // работаем с объектами из implementation (rtti не находит по имени не публичные объекты )
+  // СЂР°Р±РѕС‚Р°РµРј СЃ РѕР±СЉРµРєС‚Р°РјРё РёР· implementation (rtti РЅРµ РЅР°С…РѕРґРёС‚ РїРѕ РёРјРµРЅРё РЅРµ РїСѓР±Р»РёС‡РЅС‹Рµ РѕР±СЉРµРєС‚С‹ )
 
   c := TObjectMemFileCache.Create(4, 3);
   try
     w := TWrap.TWeekObject.Create(1);
     w2 := nil;
     try
-      c.SetToCache('вс', w);
-      w2 := c.GetFromCache<TWrap.TWeekObject>('вс');
+      c.SetToCache('РІСЃ', w);
+      w2 := c.GetFromCache<TWrap.TWeekObject>('РІСЃ');
       Assert(w2 <> w);
       Assert(w2.FDayOfWeek = w.FDayOfWeek);
       Writeln(Format('%p->%s %p->%s', [pointer(w), w.FDayOfWeek, pointer(w2),

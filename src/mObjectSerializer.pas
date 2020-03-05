@@ -78,7 +78,7 @@ end;
 
 procedure TObjectSerializer.AddClass(aClass: TClass);
 begin
-  // классы сохраняем, так как достать по имени не публичные классы через rtti невозможно
+  // РєР»Р°СЃСЃС‹ СЃРѕС…СЂР°РЅСЏРµРј, С‚Р°Рє РєР°Рє РґРѕСЃС‚Р°С‚СЊ РїРѕ РёРјРµРЅРё РЅРµ РїСѓР±Р»РёС‡РЅС‹Рµ РєР»Р°СЃСЃС‹ С‡РµСЂРµР· rtti РЅРµРІРѕР·РјРѕР¶РЅРѕ
   if FindClass(aClass.QualifiedClassName) = nil then
     FClassStore := FClassStore + [aClass];
 end;
@@ -113,7 +113,7 @@ var
   vClass: TClass;
 begin
 
-  // сначала создаем правильно через конструктор в явном виде (конструктор может быть с параметрами)
+  // СЃРЅР°С‡Р°Р»Р° СЃРѕР·РґР°РµРј РїСЂР°РІРёР»СЊРЅРѕ С‡РµСЂРµР· РєРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ РІ СЏРІРЅРѕРј РІРёРґРµ (РєРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ РјРѕР¶РµС‚ Р±С‹С‚СЊ СЃ РїР°СЂР°РјРµС‚СЂР°РјРё)
   if Assigned(FClassFactory) then
     Result := FClassFactory(aQualifiedClassName)
   else
@@ -121,7 +121,7 @@ begin
 
   if not Assigned(Result) then
   begin
-    // потом уже грязные хаки с rtti
+    // РїРѕС‚РѕРј СѓР¶Рµ РіСЂСЏР·РЅС‹Рµ С…Р°РєРё СЃ rtti
     vClass := FindClass(aQualifiedClassName);
     if Assigned(vClass) then
       Result := CreateInstance(vClass)

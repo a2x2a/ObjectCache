@@ -1,7 +1,7 @@
 unit mCache;
 
 {
-  пример реализации многоуровневого кеша. для простых типов.
+  РїСЂРёРјРµСЂ СЂРµР°Р»РёР·Р°С†РёРё РјРЅРѕРіРѕСѓСЂРѕРІРЅРµРІРѕРіРѕ РєРµС€Р°. РґР»СЏ РїСЂРѕСЃС‚С‹С… С‚РёРїРѕРІ.
 }
 interface
 
@@ -296,7 +296,7 @@ var
   p: TCacheItem;
 begin
   p := FindByKey(Key);
-  Assert(p <> nil, 'Не нашли');
+  Assert(p <> nil, 'РќРµ РЅР°С€Р»Рё');
   p.Del;
   p.Owner.FItems.Remove(p);
 end;
@@ -307,7 +307,7 @@ var
 begin
   p := FindByKey(Key);
   if p <> nil then
-  begin // элемент уже есть
+  begin // СЌР»РµРјРµРЅС‚ СѓР¶Рµ РµСЃС‚СЊ
     p.Del;
     p.Put(Value);
     p.Hit;
@@ -490,7 +490,7 @@ procedure TAsyncFileCache<TKey>.TAsyncFileCacheItem.Put
   (const Value: TValue);
 begin
   CheckState;
-  // немного многопоточки для отзывчивости.
+  // РЅРµРјРЅРѕРіРѕ РјРЅРѕРіРѕРїРѕС‚РѕС‡РєРё РґР»СЏ РѕС‚Р·С‹РІС‡РёРІРѕСЃС‚Рё.
   State := TTask.Future<Boolean>(
     function: Boolean
     begin
