@@ -9,14 +9,16 @@ uses
   mObjectSerializer in '..\src\mObjectSerializer.pas',
   mObjectCache in '..\src\mObjectCache.pas',
   demoObject in 'demoObject.pas',
-  demoObjectCache in 'demoObjectCache.pas';
+  demoObjectCache in 'demoObjectCache.pas',
+  demoCache in 'demoCache.pas';
 
 begin
 {$IFDEF DEBUG}
   ReportMemoryLeaksOnShutdown := True;
 {$ENDIF}
   try
-    { TODO -oUser -cConsole Main : Insert code here }
+    { cDemo1;
+   Exit;      }
     writeln('Demo 1');
     Demo;
     writeln('Demo 2');

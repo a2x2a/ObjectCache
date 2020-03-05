@@ -1,24 +1,31 @@
 unit mCache;
 
+{
+  пример реализации многоуровневого кеша. для простых типов.
+}
 interface
 
 uses System.Generics.Collections, System.Generics.Defaults, System.Threading;
 
 type
+
+  TsValue = string;
+
   TCacheStrategy = (csLastUse, csFrequency);
 
-  TCache<TKey> = class
+  TCache<TKey, TValue> = class
   protected type
 
     TCacheItem = class
-      Owner: TCache<TKey>;
+      Owner: TCache<TKey, TValue>;
       Key: TKey;
       HitCount: Integer;
       LastAccess: Integer;
       function KeyAsString: string;
+      function ValueAsString(const Value: TValue): string;
       procedure Assign(p: TCacheItem);
-      procedure Put(const Value: string); virtual; abstract;
-      function Get: string; virtual; abstract;
+      procedure Put(const Value: TValue); virtual; abstract;
+      function Get: TValue; virtual; abstract;
       procedure Del; virtual; abstract;
       procedure Hit;
       destructor Destroy; override;
@@ -32,33 +39,34 @@ type
       constructor Create;
     end;
 
-  procedure AddLayer(cache: TCache<TKey>);
+  procedure AddLayer(cache: TCache<TKey, TValue>);
   private
     FItems: TItems;
     FCacheItemClass: TCacheItemClass;
-    FNextCache: TCache<TKey>;
-    FPrevCache: TCache<TKey>;
+    FNextCache: TCache<TKey, TValue>;
+    FPrevCache: TCache<TKey, TValue>;
     FTimer: Integer;
     FCacheStrategy: TCacheStrategy;
     FSize: Integer;
     procedure SetCacheStrategy(const Value: TCacheStrategy);
-    function CreateCasheItem(const Key: TKey; Owner: TCache<TKey>): TCacheItem;
+    function CreateCasheItem(const Key: TKey; Owner: TCache<TKey, TValue>)
+      : TCacheItem;
     function Compare(const Left, Right: TCacheItem): Integer;
     function Weakest: TCacheItem;
     function FindByKey(const Key: TKey): TCacheItem;
     procedure Push;
     procedure Pop(p: TCacheItem);
     procedure Swap<T>(var a, b: T);
-    function AddToCache(const Key: TKey; const Value: string): TCacheItem;
+    function AddToCache(const Key: TKey; const Value: TValue): TCacheItem;
     procedure Exchange(p1, p2: TCacheItem);
     function GetTimer(delta: Integer): Integer;
   public
     property CacheStrategy: TCacheStrategy read FCacheStrategy
       write SetCacheStrategy;
 
-    procedure SetToCache(const Key: TKey; const Value: string);
+    procedure SetToCache(const Key: TKey; const Value: TValue);
     procedure Remove(const Key: TKey);
-    function GetFromCache(const Key: TKey): string;
+    function GetFromCache(const Key: TKey): TValue;
     function Exist(const Key: TKey): Boolean;
   public
 
@@ -70,31 +78,32 @@ type
 {$ENDIF}
   end;
 
-  TMemCache<TKey> = class(TCache<TKey>)
+  TMemCache<TKey, TValue> = class(TCache<TKey, TValue>)
   protected type
     TMemCacheItem = class(TCacheItem)
-      Data: string;
-      procedure Put(const Value: string); override;
-      function Get: string; override;
+      Data: TValue;
+      procedure Put(const Value: TValue); override;
+      function Get: TValue; override;
       procedure Del; override;
     end;
-
-  constructor Create(Size: Integer);
+  public
+    constructor Create(Size: Integer);
   end;
 
-  TFileCache<TKey> = class(TCache<TKey>)
+  TFileCache<TKey> = class(TCache<TKey, string>)
   private
     FCacheDir: string;
   protected type
+    TValue = string;
     TFileCacheItem = class(TCacheItem)
       FFileName: string;
       function GetUnicFileName: string;
-      procedure Put(const Value: string); override;
-      function Get: string; override;
+      procedure Put(const Value: TValue); override;
+      function Get: TValue; override;
       procedure Del; override;
     end;
-
-  constructor Create(Size: Integer; CacheDir: string = '');
+  public
+    constructor Create(Size: Integer; CacheDir: string = '');
   end;
 
   TAsyncFileCache<TKey> = class(TFileCache<TKey>)
@@ -102,12 +111,12 @@ type
     TAsyncFileCacheItem = class(TFileCacheItem)
       State: IFuture<Boolean>;
       procedure CheckState;
-      procedure Put(const Value: string); override;
-      function Get: string; override;
+      procedure Put(const Value: TValue); override;
+      function Get: TValue; override;
       procedure Del; override;
     end;
-
-  constructor Create(Size: Integer; CacheDir: string = '');
+  public
+    constructor Create(Size: Integer; CacheDir: string = '');
   end;
 
 implementation
@@ -115,14 +124,14 @@ implementation
 uses SysUtils, RTTI, IOUtils;
 
 { TCache<TKey> }
-procedure TCache<TKey>.SetCacheStrategy(const Value: TCacheStrategy);
+procedure TCache<TKey, TValue>.SetCacheStrategy(const Value: TCacheStrategy);
 begin
   FCacheStrategy := Value;
   if FNextCache <> nil then
     FNextCache.SetCacheStrategy(FCacheStrategy);
 end;
 
-procedure TCache<TKey>.AddLayer(cache: TCache<TKey>);
+procedure TCache<TKey, TValue>.AddLayer(cache: TCache<TKey, TValue>);
 begin
   if FNextCache = nil then
   begin
@@ -133,7 +142,7 @@ begin
     FNextCache.AddLayer(cache);
 end;
 
-function TCache<TKey>.AddToCache(const Key: TKey; const Value: string)
+function TCache<TKey, TValue>.AddToCache(const Key: TKey; const Value: TValue)
   : TCacheItem;
 begin
 
@@ -143,7 +152,7 @@ begin
   Result.Put(Value);
 end;
 
-function TCache<TKey>.Compare(const Left, Right: TCacheItem): Integer;
+function TCache<TKey, TValue>.Compare(const Left, Right: TCacheItem): Integer;
 begin
 
   case FCacheStrategy of
@@ -156,14 +165,14 @@ begin
   end;
 end;
 
-constructor TCache<TKey>.Create;
+constructor TCache<TKey, TValue>.Create;
 begin
   FSize := Size;
   FItems := TItems.Create;
 end;
 
-function TCache<TKey>.CreateCasheItem(const Key: TKey; Owner: TCache<TKey>)
-  : TCacheItem;
+function TCache<TKey, TValue>.CreateCasheItem(const Key: TKey;
+  Owner: TCache<TKey, TValue>): TCacheItem;
 begin
   Result := FCacheItemClass.Create;
   Result.Key := Key;
@@ -173,7 +182,7 @@ begin
   FItems.Add(Result);
 end;
 
-destructor TCache<TKey>.Destroy;
+destructor TCache<TKey, TValue>.Destroy;
 begin
   FItems.Free;
   if FNextCache <> nil then
@@ -183,22 +192,27 @@ end;
 
 {$IFDEF DEBUG}
 
-procedure TCache<TKey>.Dump(var log: Tarray<String>);
+procedure TCache<TKey, TValue>.Dump(var log: Tarray<String>);
 var
   p: TCacheItem;
+  Data: string;
 begin
   log := log + ['   ' + Self.ClassName];
   for p in FItems do
+  begin
+    Data := p.ValueAsString(p.Get);
     log := log + [Format('key: %s hit: %d last: %d data: %s',
-      [p.KeyAsString, p.HitCount, p.LastAccess, p.Get])];
+      [p.KeyAsString, p.HitCount, p.LastAccess, Data])];
+  end;
+
   if FNextCache <> nil then
     FNextCache.Dump(log);
 end;
 {$ENDIF}
 
-procedure TCache<TKey>.Exchange(p1, p2: TCacheItem);
+procedure TCache<TKey, TValue>.Exchange(p1, p2: TCacheItem);
 var
-  v1, v2: string;
+  v1, v2: TValue;
 begin
   if p1.Owner = p2.Owner then
     Exit;
@@ -215,12 +229,12 @@ begin
   p2.Put(v1);
 end;
 
-function TCache<TKey>.Exist(const Key: TKey): Boolean;
+function TCache<TKey, TValue>.Exist(const Key: TKey): Boolean;
 begin
   Result := FindByKey(Key) <> nil;
 end;
 
-function TCache<TKey>.FindByKey(const Key: TKey): TCacheItem;
+function TCache<TKey, TValue>.FindByKey(const Key: TKey): TCacheItem;
 begin
   Result := FItems.byKey(Key);
   if Result = nil then
@@ -228,7 +242,7 @@ begin
       Result := FNextCache.FindByKey(Key);
 end;
 
-function TCache<TKey>.GetFromCache(const Key: TKey): string;
+function TCache<TKey, TValue>.GetFromCache(const Key: TKey): TValue;
 var
   p: TCacheItem;
 begin
@@ -240,7 +254,7 @@ begin
   Pop(p);
 end;
 
-function TCache<TKey>.GetTimer(delta: Integer): Integer;
+function TCache<TKey, TValue>.GetTimer(delta: Integer): Integer;
 begin
   if FPrevCache = nil then
   begin
@@ -251,7 +265,7 @@ begin
     Result := FPrevCache.GetTimer(delta);
 end;
 
-procedure TCache<TKey>.Pop(p: TCacheItem);
+procedure TCache<TKey, TValue>.Pop(p: TCacheItem);
 var
   tmp: TCacheItem;
 begin
@@ -262,7 +276,7 @@ begin
     Exchange(p, tmp);
 end;
 
-procedure TCache<TKey>.Push;
+procedure TCache<TKey, TValue>.Push;
 var
   p: TCacheItem;
 begin
@@ -277,7 +291,7 @@ begin
   Remove(p.Key);
 end;
 
-procedure TCache<TKey>.Remove(const Key: TKey);
+procedure TCache<TKey, TValue>.Remove(const Key: TKey);
 var
   p: TCacheItem;
 begin
@@ -287,7 +301,7 @@ begin
   p.Owner.FItems.Remove(p);
 end;
 
-procedure TCache<TKey>.SetToCache(const Key: TKey; const Value: string);
+procedure TCache<TKey, TValue>.SetToCache(const Key: TKey; const Value: TValue);
 var
   p: TCacheItem;
 begin
@@ -304,7 +318,7 @@ begin
 
 end;
 
-procedure TCache<TKey>.Swap<T>(var a, b: T);
+procedure TCache<TKey, TValue>.Swap<T>(var a, b: T);
 var
   c: T;
 begin
@@ -315,49 +329,55 @@ end;
 
 { TCache.TItemInfo }
 
-procedure TCache<TKey>.TCacheItem.Assign(p: TCacheItem);
+procedure TCache<TKey, TValue>.TCacheItem.Assign(p: TCacheItem);
 begin
   LastAccess := p.LastAccess;
   HitCount := p.HitCount;
 end;
 
-destructor TCache<TKey>.TCacheItem.Destroy;
+destructor TCache<TKey, TValue>.TCacheItem.Destroy;
 begin
   Del;
   inherited;
 end;
 
-procedure TCache<TKey>.TCacheItem.Hit;
+procedure TCache<TKey, TValue>.TCacheItem.Hit;
 begin
   HitCount := HitCount + 1;
   LastAccess := Owner.GetTimer(+1);
 end;
 
-function TCache<TKey>.TCacheItem.KeyAsString: string;
+function TCache<TKey, TValue>.TCacheItem.KeyAsString: string;
 begin
-  Result := TValue.From<TKey>(Key).ToString;
+  Result := RTTI.TValue.From<TKey>(Key).ToString;
+end;
+
+function TCache<TKey, TValue>.TCacheItem.ValueAsString
+  (const Value: TValue): string;
+begin
+  Result := RTTI.TValue.From<TValue>(Value).ToString;
 end;
 
 { TMemCache.TMemItemInfo }
 
-procedure TMemCache<TKey>.TMemCacheItem.Del;
+procedure TMemCache<TKey, TValue>.TMemCacheItem.Del;
 begin
-  Data := '';
+  Data := default (TValue);
 end;
 
-function TMemCache<TKey>.TMemCacheItem.Get: string;
+function TMemCache<TKey, TValue>.TMemCacheItem.Get: TValue;
 begin
   Result := Data;
 end;
 
-procedure TMemCache<TKey>.TMemCacheItem.Put(const Value: string);
+procedure TMemCache<TKey, TValue>.TMemCacheItem.Put(const Value: TValue);
 begin
   Data := Value;
 end;
 
 { TCache.TItems }
 
-function TCache<TKey>.TItems.byKey(const Key: TKey): TCacheItem;
+function TCache<TKey, TValue>.TItems.byKey(const Key: TKey): TCacheItem;
 var
   p: TCacheItem;
 begin
@@ -367,7 +387,7 @@ begin
   Result := nil;
 end;
 
-function TCache<TKey>.Weakest: TCacheItem;
+function TCache<TKey, TValue>.Weakest: TCacheItem;
 var
   i: Integer;
 begin
@@ -384,13 +404,13 @@ end;
 
 { TMemCache }
 
-constructor TMemCache<TKey>.Create(Size: Integer);
+constructor TMemCache<TKey, TValue>.Create(Size: Integer);
 begin
   inherited Create(Size);
   FCacheItemClass := TMemCacheItem;
 end;
 
-{ TFileCache<TKey>.TFileCacheItem }
+{ TFileCache<TKey, TValue>.TFileCacheItem }
 
 procedure TFileCache<TKey>.TFileCacheItem.Del;
 begin
@@ -399,9 +419,15 @@ begin
   FFileName := '';
 end;
 
-function TFileCache<TKey>.TFileCacheItem.Get: string;
+function TFileCache<TKey>.TFileCacheItem.Get: TValue;
+var
+  buf: string;
+  v: RTTI.TValue;
 begin
-  Result := TFile.ReadAllText(FFileName, TEncoding.UTF8);
+ // Result := default (TValue);
+  buf := TFile.ReadAllText(FFileName, TEncoding.UTF8);
+  //v := buf;
+  Result := buf//v.AsType<TValue>;
 end;
 
 function TFileCache<TKey>.TFileCacheItem.GetUnicFileName: string;
@@ -410,13 +436,16 @@ begin
     TPath.GetGUIDFileName);
 end;
 
-procedure TFileCache<TKey>.TFileCacheItem.Put(const Value: string);
+procedure TFileCache<TKey>.TFileCacheItem.Put(const Value: TValue);
+var
+  buf: string;
 begin
   FFileName := GetUnicFileName;
-  TFile.WriteAllText(FFileName, Value, TEncoding.UTF8);
+  buf := ValueAsString(Value);
+  TFile.WriteAllText(FFileName, buf, TEncoding.UTF8);
 end;
 
-{ TFileCache<TKey> }
+{ TFileCache<TKey, TValue> }
 
 constructor TFileCache<TKey>.Create;
 begin
@@ -428,15 +457,16 @@ begin
   TDirectory.CreateDirectory(FCacheDir);
 end;
 
-{ TAsyncFileCache<TKey> }
+{ TAsyncFileCache<TKey, TValue> }
 
-constructor TAsyncFileCache<TKey>.Create(Size: Integer; CacheDir: string);
+constructor TAsyncFileCache<TKey>.Create(Size: Integer;
+  CacheDir: string);
 begin
   inherited;
   FCacheItemClass := TAsyncFileCacheItem;
 end;
 
-{ TAsyncFileCache<TKey>.TAsyncFileCacheItem }
+{ TAsyncFileCache<TKey, TValue>.TAsyncFileCacheItem }
 
 procedure TAsyncFileCache<TKey>.TAsyncFileCacheItem.CheckState;
 begin
@@ -450,13 +480,14 @@ begin
   inherited;
 end;
 
-function TAsyncFileCache<TKey>.TAsyncFileCacheItem.Get: string;
+function TAsyncFileCache<TKey>.TAsyncFileCacheItem.Get: TValue;
 begin
   CheckState;
   Result := inherited;
 end;
 
-procedure TAsyncFileCache<TKey>.TAsyncFileCacheItem.Put(const Value: string);
+procedure TAsyncFileCache<TKey>.TAsyncFileCacheItem.Put
+  (const Value: TValue);
 begin
   CheckState;
   // немного многопоточки для отзывчивости.
@@ -468,7 +499,7 @@ begin
     end);
 end;
 
-constructor TCache<TKey>.TItems.Create;
+constructor TCache<TKey, TValue>.TItems.Create;
 begin
   inherited Create;
   FKeyComparer := TComparer<TKey>.default;

@@ -6,7 +6,7 @@ uses mCache, mObjectSerializer;
 
 type
 
-  TObjectMemCache = class(TMemCache<string>)
+  TObjectMemCache = class(TMemCache<string, string>)
   private
     FSerializer: IObjectSerializer;
   public
@@ -38,8 +38,9 @@ uses IOUtils;
 constructor TObjectMemFileCache.Create;
 begin
   inherited;
-
-  AddLayer(TFileCache<string>.Create(aHDDSize, TPath.GetTempPath + '\ssd'));
+  if aHDDSize > 0 then
+    AddLayer(TFileCache<string>.Create(aHDDSize,
+      TPath.GetTempPath + '\ssd'));
 
   {
     AddLayer(TFileCache<Integer>.Create(aHDDSize,
@@ -86,9 +87,9 @@ constructor TObjectMemAsyncFileCache.Create(aMemSize, aHDDSize: Integer;
   ClassFactory: TClassFactory);
 begin
   inherited;
-
-  AddLayer(TAsyncFileCache<string>.Create(aHDDSize,
-    TPath.GetTempPath + '\ssd'));
+  if aHDDSize > 0 then
+    AddLayer(TAsyncFileCache<string>.Create(aHDDSize,
+      TPath.GetTempPath + '\ssd'));
 end;
 
 end.
